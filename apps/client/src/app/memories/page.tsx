@@ -2,7 +2,7 @@ import React from 'react'
 
 function page() {
   return (
-    <div>memories page</div>
+    <div>memories page CHANGE</div>
   )
 }
 
