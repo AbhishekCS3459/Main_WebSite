@@ -63,12 +63,6 @@ jobs:
           name: client-artifacts
           path: apps/client
 
-      - name: Test Env
-        run: |
-          echo ${{ secrets.VERCEL_TOKEN }}
-          echo ${{ secrets.VERCEL_ORG_ID }}
-          echo ${{ secrets.VERCEL_PROJECT_ID }}
-
       - name: Deploy to Vercel
         run: |
           prodRun=""
