@@ -1,41 +1,83 @@
 name: Deploy Client to Vercel
+
 on:
-    push:
-        branches:
-            - master
-            - main
-        paths:
-            - 'apps/client/**'
-    release:
-        types:
-            - created
-    workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'apps/client/**'
+  release:
+    types:
+      - created
+
 jobs:
-    vercel:
-        runs-on: ubuntu-latest
-        name: Deploy Client to Vercel
-        steps:
-         - uses: actions/checkout@v2
-           name: Checkout
-         - uses: actions/setup-node@v1
-           name: Setup Node
-           with:
-                node-version: 18.x
-         - name: CD into client
-           run: cd apps/client
-         - name: Install Dependencies
-           run: npm install
-         - name: Test Env
-           run: echo ${{ secrets.VERCEL_TOKEN }} && echo ${{ secrets.VERCEL_ORG_ID }} && echo ${{ secrets.VERCEL_PROJECT_ID }}
-         - name: Deploy to Vercel
-           run: |
-              prodRun=""
-                if [ "${{ github.event_name }}" == "release" ]; then
-                    prodRun="--prod"
-                fi
-              npx vercel --token ${{ secrets.VERCEL_TOKEN }} $prodRun
-            
-        env:
-                VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-                VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-                VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: client-artifacts
+          path: apps/client
+
+  vercel:
+    runs-on: ubuntu-latest
+    name: Deploy Client to Vercel
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+
+      - name: Extract artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: client-artifacts
+          path: apps/client
+
+      - name: Test Env
+        run: |
+          echo ${{ secrets.VERCEL_TOKEN }}
+          echo ${{ secrets.VERCEL_ORG_ID }}
+          echo ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel
+        run: |
+          prodRun=""
+          if [ "${{ github.event_name }}" == "release" ]; then
+            prodRun="--prod"
+          fi
+          npx vercel --token ${{ secrets.VERCEL_TOKEN }} $prodRun
+
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
